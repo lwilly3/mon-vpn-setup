@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+
+echo "🔧 Installation du service VPN WireGuard (wg-easy)..."
+
+# Vérifie que Docker est installé
+if ! command -v docker &> /dev/null; then
+  echo "Docker non installé. Installation..."
+  curl -fsSL https://get.docker.com | sh
+fi
+
+# Vérifie Docker Compose
+if ! command -v docker compose &> /dev/null; then
+  echo "Docker Compose non installé. Installation..."
+  apt-get update && apt-get install -y docker-compose-plugin
+fi
+
+# Charge les variables d'environnement
+if [ -f ".env" ]; then
+  export $(grep -v '^#' .env | xargs)
+else
+  echo "⚠️  Fichier .env non trouvé. Copiez .env.example vers .env et modifiez-le."
+  exit 1
+fi
+
+# Crée le dossier pour les données persistantes
+mkdir -p ${WG_VOLUME_PATH}
+
+# Démarre le conteneur
+echo "🚀 Démarrage du conteneur wg-easy..."
+docker compose up -d
+
+# Vérifie l’état du service
+sleep 5
+docker ps | grep wg-easy && echo "✅ VPN WireGuard opérationnel !" || echo "❌ Erreur : wg-easy ne s'est pas lancé."

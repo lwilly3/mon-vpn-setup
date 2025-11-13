@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  vpn:
+    image: weejewel/wg-easy:latest
+    container_name: wg-easy
+    restart: unless-stopped
+    environment:
+      - WG_HOST=${WG_HOST}
+      - PASSWORD=${PASSWORD}
+      - WG_PORT=${WG_PORT}
+      - WG_DEFAULT_DNS=${WG_DEFAULT_DNS}
+    ports:
+      - "${WG_PORT}:${WG_PORT}/udp"
+      - "51821:51821/tcp"  # Interface Web
+    volumes:
+      - ${WG_VOLUME_PATH}:/etc/wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    networks:
+      - vpn_net
+
+networks:
+  vpn_net:
+    driver: bridge

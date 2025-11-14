@@ -1,87 +1,203 @@
+
 version: "3.9"
 
 # ===========================
 # Services
 # ===========================
 services:
-  vpn:
-    image: weejewel/wg-easy:latest          # Image Docker officielle de WG-Easy
-    container_name: wg-easy                 # Nom du conteneur (pratique pour debug)
-    restart: unless-stopped                 # Redémarre automatiquement sauf si stoppé manuellement
 
-    # ---------------------------
-    # Variables d'environnement
-    # ---------------------------
-    #
-    # Ces variables peuvent être :
-    # - définies dans un fichier .env
-    # - ou ajoutées dans l’interface Dokploy → Project → Environment
-    #
-    environment:
-      WG_HOST: ${WG_HOST}                   # Nom de domaine ou IP publique utilisée par le VPN
-      PASSWORD: ${PASSWORD}                 # Mot de passe administrateur WG-Easy
-      WG_PORT: ${WG_PORT}                   # Port WireGuard (par défaut 51820)
-      WG_DEFAULT_DNS: ${WG_DEFAULT_DNS}     # DNS attribué aux clients (1.1.1.1 ou autre)
-
-    # ---------------------------
-    # Ports
-    # ---------------------------
+  # ---------------------------
+  # Traefik (Reverse Proxy + Let's Encrypt)
+  # ---------------------------
+  traefik:
+    image: traefik:v3.5
+    container_name: dokploy-traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=false"                      # Interface Traefik désactivée pour accès public
+      - "--api.dashboard=true"                      # Dashboard activé sur /dashboard
+      - "--entrypoints.web.address=:80"             # HTTP
+      - "--entrypoints.websecure.address=:443"     # HTTPS
+      - "--providers.docker=true"                   # Lire les labels Docker
+      - "--providers.docker.exposedbydefault=false" # N’exposer que les conteneurs avec labels
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${LE_EMAIL}" # Ton email Let's Encrypt
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
     ports:
-      - "${WG_PORT}:${WG_PORT}/udp"         # Port UDP utilisé par WireGuard (obligatoire)
-      - "51821:51821/tcp"                   # Interface Web WG-Easy (HTTP ou via HTTPS avec Traefik)
-
-    # ---------------------------
-    # Volumes
-    # ---------------------------
-    #
-    # Ce volume contient :
-    # - Les fichiers .conf des clients VPN
-    # - Les clés privées du serveur
-    #
-    # IMPORTANT : sauvegarder ce dossier régulièrement
-    #
+      - "80:80"
+      - "443:443"
     volumes:
-      - ${WG_VOLUME_PATH}:/etc/wireguard    # Emplacement persistant des configs WireGuard
-
-    # ---------------------------
-    # Capacités système nécessaires
-    # ---------------------------
-    cap_add:
-      - NET_ADMIN                           # Permet de gérer les interfaces réseau
-      - SYS_MODULE                          # Permet d’utiliser certains modules Kernel (WireGuard)
-
-    # ---------------------------
-    # Paramètres sysctl
-    # ---------------------------
-    #
-    # Nécessaires pour permettre au serveur VPN
-    # de router le trafic des clients vers Internet.
-    #
-    sysctls:
-      - net.ipv4.ip_forward=1               # Active le routage IPv4
-      - net.ipv6.conf.all.forwarding=1      # Active le routage IPv6
-
-    # ---------------------------
-    # Labels Traefik (HTTPS + Dokploy)
-    # ---------------------------
-    labels:
-      - "traefik.enable=true"                                          # Active Traefik pour ce service
-      - "traefik.http.routers.wg-easy.rule=Host(`${WG_HOST}`)"         # Nom de domaine géré par ce routeur
-      - "traefik.http.routers.wg-easy.entrypoints=websecure"           # Utilise HTTPS (Entrypoint Traefik)
-      - "traefik.http.routers.wg-easy.tls=true"                        # Active TLS
-      - "traefik.http.routers.wg-easy.tls.certresolver=letsencrypt"    # Génère automatiquement le certificat SSL
-      - "traefik.http.services.wg-easy.loadbalancer.server.port=51821" # Port interne exposé à Traefik (UI wg-easy)
-
-
-    # ---------------------------
-    # Réseau Docker
-    # ---------------------------
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certificates:/letsencrypt
     networks:
       - vpn_net
+
+  # ---------------------------
+  # VPN (wg-easy)
+  # ---------------------------
+  vpn:
+    image: weejewel/wg-easy:latest
+    container_name: wg-easy
+    restart: unless-stopped
+    environment:
+      WG_HOST: ${WG_HOST}                   # Nom de domaine / IP publique
+      PASSWORD: ${PASSWORD}                 # Mot de passe admin wg-easy
+      WG_ADMIN_PASSWORD: ${WG_ADMIN_PASSWORD} # Idem
+      WG_PORT: ${WG_PORT}                   # Port UDP WireGuard
+      WG_DEFAULT_DNS: ${WG_DEFAULT_DNS}     # DNS clients VPN
+    ports:
+      - "${WG_PORT}:${WG_PORT}/udp"          # UDP WireGuard
+    volumes:
+      - ${WG_VOLUME_PATH}:/etc/wireguard     # Config persistant
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    networks:
+      - vpn_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wg-easy.rule=Host(`${WG_HOST}`)"
+      - "traefik.http.routers.wg-easy.entrypoints=websecure"
+      - "traefik.http.routers.wg-easy.tls=true"
+      - "traefik.http.routers.wg-easy.tls.certresolver=letsencrypt"
+      - "traefik.http.services.wg-easy.loadbalancer.server.port=51821"
 
 # ===========================
 # Réseaux
 # ===========================
 networks:
   vpn_net:
-    driver: bridge                          # Réseau Docker isolé (sécurisé et indépendant)
+    driver: bridge
+
+# ===========================
+# Volumes persistants
+# ===========================
+volumes:
+  traefik-certificates:
+  wg-config:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+########################ancienne config ###########################
+# ---------------------------
+# Docker Compose pour WG-Easy
+# ---------------------------
+
+
+
+# version: "3.9"
+
+# # ===========================
+# # Services
+# # ===========================
+# services:
+#   vpn:
+#     image: weejewel/wg-easy:latest          # Image Docker officielle de WG-Easy
+#     container_name: wg-easy                 # Nom du conteneur (pratique pour debug)
+#     restart: unless-stopped                 # Redémarre automatiquement sauf si stoppé manuellement
+
+#     # ---------------------------
+#     # Variables d'environnement
+#     # ---------------------------
+#     #
+#     # Ces variables peuvent être :
+#     # - définies dans un fichier .env
+#     # - ou ajoutées dans l’interface Dokploy → Project → Environment
+#     #
+#     environment:
+#       WG_HOST: ${WG_HOST}                   # Nom de domaine ou IP publique utilisée par le VPN
+#       PASSWORD: ${PASSWORD}                 # Mot de passe administrateur WG-Easy
+#       WG_PORT: ${WG_PORT}                   # Port WireGuard (par défaut 51820)
+#       WG_DEFAULT_DNS: ${WG_DEFAULT_DNS}     # DNS attribué aux clients (1.1.1.1 ou autre)
+
+#     # ---------------------------
+#     # Ports
+#     # ---------------------------
+#     ports:
+#       - "${WG_PORT}:${WG_PORT}/udp"         # Port UDP utilisé par WireGuard (obligatoire)
+#       - "51821:51821/tcp"                   # Interface Web WG-Easy (HTTP ou via HTTPS avec Traefik)
+
+#     # ---------------------------
+#     # Volumes
+#     # ---------------------------
+#     #
+#     # Ce volume contient :
+#     # - Les fichiers .conf des clients VPN
+#     # - Les clés privées du serveur
+#     #
+#     # IMPORTANT : sauvegarder ce dossier régulièrement
+#     #
+#     volumes:
+#       - ${WG_VOLUME_PATH}:/etc/wireguard    # Emplacement persistant des configs WireGuard
+
+#     # ---------------------------
+#     # Capacités système nécessaires
+#     # ---------------------------
+#     cap_add:
+#       - NET_ADMIN                           # Permet de gérer les interfaces réseau
+#       - SYS_MODULE                          # Permet d’utiliser certains modules Kernel (WireGuard)
+
+#     # ---------------------------
+#     # Paramètres sysctl
+#     # ---------------------------
+#     #
+#     # Nécessaires pour permettre au serveur VPN
+#     # de router le trafic des clients vers Internet.
+#     #
+#     sysctls:
+#       - net.ipv4.ip_forward=1               # Active le routage IPv4
+#       - net.ipv6.conf.all.forwarding=1      # Active le routage IPv6
+
+#     # ---------------------------
+#     # Labels Traefik (HTTPS + Dokploy)
+#     # ---------------------------
+#     labels:
+#       - "traefik.enable=true"                                          # Active Traefik pour ce service
+#       - "traefik.http.routers.wg-easy.rule=Host(`${WG_HOST}`)"         # Nom de domaine géré par ce routeur
+#       - "traefik.http.routers.wg-easy.entrypoints=websecure"           # Utilise HTTPS (Entrypoint Traefik)
+#       - "traefik.http.routers.wg-easy.tls=true"                        # Active TLS
+#       - "traefik.http.routers.wg-easy.tls.certresolver=letsencrypt"    # Génère automatiquement le certificat SSL
+#       - "traefik.http.services.wg-easy.loadbalancer.server.port=51821" # Port interne exposé à Traefik (UI wg-easy)
+
+
+#     # ---------------------------
+#     # Réseau Docker
+#     # ---------------------------
+#     networks:
+#       - vpn_net
+
+# # ===========================
+# # Réseaux
+# # ===========================
+# networks:
+#   vpn_net:
+#     driver: bridge                          # Réseau Docker isolé (sécurisé et indépendant)

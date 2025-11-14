@@ -1,0 +1,38 @@
+labels:
+  # ===========================
+  # Activation de Traefik
+  # ===========================
+  - "traefik.enable=true"  
+    # Active Traefik pour ce conteneur. Sans cela, Traefik ignore totalement le service.
+
+  # ===========================
+  # Règle de routage (Router)
+  # ===========================
+  - "traefik.http.routers.wg-easy.rule=Host(`${WG_HOST}`)"  
+    # Traefik redirige le trafic vers WG-Easy uniquement si l'utilisateur
+    # accède via le domaine défini dans la variable d'environnement WG_HOST.
+    # Exemple : vpn.monassurance.cm
+
+  - "traefik.http.routers.wg-easy.entrypoints=websecure"  
+    # Utilise l’entrypoint HTTPS (port 443).
+    # Le port 80 (web) est uniquement utilisé par Traefik pour la redirection automatique.
+
+  # ===========================
+  # Configuration HTTPS
+  # ===========================
+  - "traefik.http.routers.wg-easy.tls=true"  
+    # Active TLS pour ce routeur (HTTPS obligatoire).
+
+  - "traefik.http.routers.wg-easy.tls.certresolver=letsencrypt"
+    # Indique à Traefik d'utiliser le résolveur Let's Encrypt.
+    # → Génère automatiquement un certificat SSL valide.
+    # → Certificat renouvelé automatiquement.
+
+  # ===========================
+  # Backend (Service)
+  # ===========================
+  - "traefik.http.services.wg-easy.loadbalancer.server.port=51821"
+    # Traefik doit savoir sur quel port interne WG-Easy écoute.
+    # WG-Easy expose son interface web en interne sur 51821/tcp.
+    # Traefik va donc rediriger :
+    #    https://WG_HOST → wg-easy:51821

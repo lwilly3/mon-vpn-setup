@@ -174,3 +174,23 @@ cp .env.example .env
 # Modifier les valeurs (nom de domaine, mot de passe, etc.)
 bash setup.sh
 ```
+
+
+
+## 📌 Notes sur Traefik
+
+Pour activer HTTPS via Traefik, ajouter les labels Docker suivants dans docker-compose.yml :
+
+```bash
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.wg-easy.rule=Host(`${WG_HOST}`)"
+  - "traefik.http.routers.wg-easy.entrypoints=websecure"
+  - "traefik.http.routers.wg-easy.tls=true"
+  - "traefik.http.routers.wg-easy.tls.certresolver=letsencrypt"
+  - "traefik.http.services.wg-easy.loadbalancer.server.port=51821"
+```
+
+Traefik récupère automatiquement un certificat SSL via Let's Encrypt pour le domaine WG_HOST.
+
+L’interface Web devient accessible en HTTPS, sécurisé et sans exposer directement le port 51821.

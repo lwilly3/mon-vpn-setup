@@ -1,2 +1,32 @@
+# Fichiers de configuration sensibles
 .env
+
+# Données WireGuard
+data/
+*.conf
+
+# Certificats SSL
+*.pem
+*.key
+*.crt
+acme.json
+traefik/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
 *.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup
+*.backup
+*.bak

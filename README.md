@@ -40,13 +40,56 @@ L’installation fonctionne sur un **VPS Ubuntu** avec **Dokploy**, un orchestra
 
 ## 🗂️ Structure du projet
 
+## 🗂️ Structure du projet
+
 ```
 mon-vpn-setup/
-├─ docker-compose.yml       # Conteneur WireGuard + wg-easy
-├─ .env.template            # Variables sensibles à copier
-├─ setup.sh                 # Script d’installation automatique
+├─ docker-compose.yml       # Configuration Docker avec Traefik
+├─ Dockerfile               # Image personnalisée basée sur wg-easy
+├─ .env.template            # Template des variables d'environnement
+├─ manual-setup.sh          # Script d'installation manuelle (optionnel)
+├─ .gitignore               # Fichiers à ne pas versionner
 └─ README.md                # Documentation complète
 ```
+
+---
+
+## ⚠️ Prérequis système
+
+### Installation de WireGuard sur l'hôte VPS
+
+**Avant tout déploiement**, WireGuard doit être installé sur le VPS Ubuntu :
+
+```bash
+sudo apt-get update
+sudo apt-get install -y wireguard
+sudo modprobe wireguard
+
+# Vérifier l'installation
+lsmod | grep wireguard
+```
+
+> 💡 Cette étape est **obligatoire** car le conteneur Docker a besoin du module kernel WireGuard de l'hôte.
+
+---
+
+## 🔑 Variables d'environnement
+
+À définir dans **Dokploy** (section Environment Variables) :
+
+```bash
+WG_HOST=vpn.monassurance.ovh       # Domaine/IP publique du VPS
+WG_PORT=51820                       # Port UDP pour WireGuard
+PASSWORD=CHANGEZ_MOT_DE_PASSE       # Mot de passe interface wg-easy
+WG_ADMIN_PASSWORD=CHANGEZ_MOT_DE_PASSE
+WG_DEFAULT_ADDRESS=10.13.13.x       # Sous-réseau VPN pour les clients
+WG_ALLOWED_IPS=0.0.0.0/0            # Routes autorisées (0.0.0.0/0 = tout)
+WG_DEFAULT_DNS=1.1.1.1              # DNS pour clients VPN
+TZ=Africa/Douala                    # Fuseau horaire
+WG_VOLUME_PATH=/data/wireguard      # Répertoire persistant
+```
+
+> ⚠️ **Sécurité :** Utilisez des mots de passe forts et ne versionnez jamais `.env` dans Git.
 
 ---
 
@@ -70,9 +113,53 @@ WG_VOLUME_PATH=/home/ubuntu/wg-config # Répertoire persistant pour configs Wire
 
 ---
 
-## 🔧 Installation automatique
+## � Déploiement avec Dokploy
 
-### 1. Cloner le dépôt
+### 1. Installer WireGuard sur le VPS (prérequis)
+
+```bash
+ssh ubuntu@votre-vps
+sudo apt-get update && sudo apt-get install -y wireguard
+sudo modprobe wireguard
+```
+
+### 2. Créer le projet dans Dokploy
+
+1. Connectez-vous à Dokploy : `https://votre-vps:3000`
+2. Créez un nouveau projet : **"mon-vpn-setup"**
+3. Type : **Docker Compose** ou **Dockerfile**
+4. Liez votre dépôt GitHub
+
+### 3. Configurer les variables d'environnement
+
+Dans Dokploy → **Environment Variables**, ajoutez :
+
+```env
+WG_HOST=vpn.monassurance.ovh
+WG_ADMIN_PASSWORD=VotreMotDePasseSecurise123!
+PASSWORD=VotreMotDePasseSecurise123!
+WG_PORT=51820
+WG_DEFAULT_ADDRESS=10.13.13.x
+WG_ALLOWED_IPS=0.0.0.0/0
+WG_DEFAULT_DNS=1.1.1.1
+TZ=Africa/Douala
+WG_VOLUME_PATH=/data/wireguard
+```
+
+### 4. Déployer
+
+Cliquez sur **"Deploy"** dans Dokploy.
+
+### 5. Accéder à l'interface
+
+- **Avec Traefik (HTTPS)** : `https://vpn.monassurance.ovh`
+- **Direct (HTTP)** : `http://IP_VPS:51821`
+
+---
+
+## 🔧 Installation manuelle (sans Dokploy)
+
+Si vous préférez un déploiement manuel :
 
 ```bash
 git clone https://github.com/votre-compte/mon-vpn-setup.git

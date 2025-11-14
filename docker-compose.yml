@@ -61,16 +61,16 @@ services:
       - net.ipv4.ip_forward=1               # Active le routage IPv4
       - net.ipv6.conf.all.forwarding=1      # Active le routage IPv6
 
-    # # ---------------------------
-    # # Labels Traefik (HTTPS + Dokploy)
-    # # ---------------------------
-    # labels:
-    #   - "traefik.enable=true"                                          # Active Traefik pour ce service
-    #   - "traefik.http.routers.wg-easy.rule=Host(`${WG_HOST}`)"         # Nom de domaine géré par ce routeur
-    #   - "traefik.http.routers.wg-easy.entrypoints=websecure"           # Utilise HTTPS (Entrypoint Traefik)
-    #   - "traefik.http.routers.wg-easy.tls=true"                        # Active TLS
-    #   - "traefik.http.routers.wg-easy.tls.certresolver=letsencrypt"    # Génère automatiquement le certificat SSL
-    #   - "traefik.http.services.wg-easy.loadbalancer.server.port=51821" # Port interne exposé à Traefik (UI wg-easy)
+    # ---------------------------
+    # Labels Traefik (HTTPS + Dokploy)
+    # ---------------------------
+    labels:
+      - "traefik.enable=true"                                          # Active Traefik pour ce service
+      - "traefik.http.routers.wg-easy.rule=Host(`${WG_HOST}`)"         # Nom de domaine géré par ce routeur
+      - "traefik.http.routers.wg-easy.entrypoints=websecure"           # Utilise HTTPS (Entrypoint Traefik)
+      - "traefik.http.routers.wg-easy.tls=true"                        # Active TLS
+      - "traefik.http.routers.wg-easy.tls.certresolver=letsencrypt"    # Génère automatiquement le certificat SSL
+      - "traefik.http.services.wg-easy.loadbalancer.server.port=51821" # Port interne exposé à Traefik (UI wg-easy)
 
 
     # ---------------------------

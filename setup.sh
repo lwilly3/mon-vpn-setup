@@ -3,6 +3,18 @@ set -e
 
 echo "🔧 Installation du service VPN WireGuard (wg-easy)..."
 
+# Vérifie et installe le module WireGuard sur l'hôte
+echo "📦 Vérification du module WireGuard..."
+if ! lsmod | grep -q wireguard; then
+  echo "⚙️  Installation de WireGuard sur l'hôte..."
+  apt-get update -qq
+  apt-get install -y wireguard
+  modprobe wireguard
+  echo "✅ Module WireGuard chargé"
+else
+  echo "✅ Module WireGuard déjà présent"
+fi
+
 # Vérifie que Docker est installé
 if ! command -v docker &> /dev/null; then
   echo "Docker non installé. Installation..."
